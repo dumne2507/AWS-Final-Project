@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowDynamoDBRecipesTableReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:Scan",
+        "dynamodb:Query",
+        "dynamodb:GetItem"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-southeast-1:*:table/RecipesTable",
+        "arn:aws:dynamodb:ap-southeast-1:*:table/RecipesTable/index/*"
+      ]
+    },
+    {
+      "Sid": "AllowCloudWatchLogsWrite",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:ap-southeast-1:*:log-group:/aws/lambda/*:*"
+    }
+  ]
+}

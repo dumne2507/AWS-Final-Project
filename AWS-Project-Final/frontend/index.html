@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gợi Ý Món Ăn Theo Nguyên Liệu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #f97316; border-radius: 3px; }
+
+    /* Card hover lift */
+    .recipe-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .recipe-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 3px solid #fed7aa;
+      border-top-color: #f97316;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    /* Tag pill */
+    .ingredient-tag {
+      display: inline-block;
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+      border-radius: 9999px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      margin: 2px;
+    }
+
+    /* Popup overlay */
+    .popup-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 50;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .popup-overlay.active { display: flex; }
+
+    /* Fade-in animation for cards */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeInUp 0.35s ease both; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-orange-50 via-white to-amber-50 font-sans">
+
+  <!-- ===== HEADER ===== -->
+  <header class="bg-gradient-to-r from-orange-500 to-amber-500 shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 py-5 flex flex-col sm:flex-row items-center gap-3">
+      <!-- Logo / Icon -->
+      <div class="flex-shrink-0 bg-white rounded-full p-2 shadow">
+        <svg class="w-9 h-9 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 3C8 3 5 6 5 10c0 5 7 11 7 11s7-6 7-11c0-4-3-7-7-7z"/>
+          <circle cx="12" cy="10" r="3" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <div class="text-center sm:text-left">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-wide drop-shadow">
+          🍽️ GỢI Ý MÓN ĂN THEO NGUYÊN LIỆU
+        </h1>
+        <p class="text-orange-100 text-sm mt-0.5">
+          Nhập nguyên liệu bạn có — chúng tôi tìm món ngon cho bạn!
+        </p>
+      </div>
+      <!-- AWS Badge -->
+      <div class="sm:ml-auto flex-shrink-0">
+        <span class="bg-white/20 border border-white/40 text-white text-xs font-semibold px-3 py-1 rounded-full">
+          ☁️ Powered by AWS Serverless
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== SEARCH SECTION ===== -->
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <section class="bg-white rounded-2xl shadow-md p-6 mb-8 border border-orange-100">
+      <label class="block text-gray-700 font-semibold mb-2 text-sm">
+        🧅 Nhập nguyên liệu (phân cách bằng dấu phẩy):
+      </label>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          id="ingredient-input"
+          type="text"
+          placeholder="Ví dụ: trứng, thịt băm, cà chua"
+          maxlength="200"
+          class="flex-1 border-2 border-orange-200 rounded-xl px-4 py-3 text-gray-800
+                 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100
+                 placeholder-gray-400 text-sm transition"
+        />
+        <div class="flex gap-2">
+          <button
+            id="search-btn"
+            onclick="searchRecipes()"
+            class="flex-1 sm:flex-none bg-orange-500 hover:bg-orange-600 active:scale-95
+                   text-white font-bold px-5 py-3 rounded-xl shadow transition-all
+                   flex items-center gap-2 justify-center text-sm"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="m21 21-4.35-4.35"/>
+            </svg>
+            Tìm Kiếm Món Ăn
+          </button>
+          <button
+            id="random-btn"
+            onclick="randomRecipes()"
+            class="flex-1 sm:flex-none bg-gray-500 hover:bg-gray-600 active:scale-95
+                   text-white font-bold px-5 py-3 rounded-xl shadow transition-all
+                   flex items-center gap-2 justify-center text-sm"
+          >
+            🎲 Tìm Ngẫu Nhiên
+          </button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 mt-2">
+        💡 Thử: "trứng, cà chua" hoặc "thịt băm" hoặc "tỏi"
+      </p>
+    </section>
+
+    <!-- ===== STATUS BAR ===== -->
+    <div id="status-bar" class="hidden mb-5 flex items-center gap-3 bg-blue-50 border border-blue-200
+                                rounded-xl px-4 py-3 text-sm text-blue-700 font-medium">
+      <span id="status-icon"></span>
+      <span id="status-text"></span>
+    </div>
+
+    <!-- ===== RESULTS ===== -->
+    <div id="results-header" class="hidden flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-gray-700">
+        📋 Kết quả tìm kiếm: <span id="result-count" class="text-orange-500"></span> món
+      </h2>
+      <span id="data-source-badge" class="text-xs px-2 py-1 rounded-full font-semibold"></span>
+    </div>
+
+    <div id="results-grid"
+         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="hidden text-center py-16">
+      <div class="text-6xl mb-4">🥺</div>
+      <p class="text-gray-500 text-lg font-semibold">Không tìm thấy món ăn phù hợp.</p>
+      <p class="text-gray-400 text-sm mt-1">Thử nhập nguyên liệu khác hoặc nhấn "Tìm Ngẫu Nhiên".</p>
+    </div>
+  </main>
+
+  <!-- ===== POPUP MODAL ===== -->
+  <div id="popup-overlay" class="popup-overlay" onclick="closePopup(event)">
+    <div id="popup-box"
+         class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto
+                border border-orange-100 relative">
+      <!-- Close button -->
+      <button onclick="closePopupDirect()"
+              class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition z-10">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+      <!-- Image -->
+      <img id="popup-img" src="" alt=""
+           class="w-full h-52 object-cover rounded-t-2xl bg-orange-50" />
+      <div class="p-6">
+        <h3 id="popup-name" class="text-xl font-extrabold text-gray-800 mb-1"></h3>
+        <div id="popup-ingredients" class="mb-4"></div>
+        <h4 class="font-bold text-orange-600 mb-2 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586
+                 a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Cách Làm
+        </h4>
+        <ol id="popup-instructions" class="space-y-2 text-sm text-gray-700 list-decimal list-inside"></ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="text-center text-xs text-gray-400 py-6 mt-4">
+    AWS Serverless Lab · DynamoDB · Lambda · API Gateway · S3 · 2026
+  </footer>
+
+  <!-- ===== SCRIPT ===== -->
+  <script>
+    // ──────────────────────────────────────────────────────────
+    //  CONFIG: điền link API Gateway sau khi deploy lên AWS
+    // ──────────────────────────────────────────────────────────
+    const API_URL = ""; // ← Paste your API Gateway Invoke URL here
+
+    // ──────────────────────────────────────────────────────────
+    //  MOCK DATA (5 món ăn Việt Nam) — dùng khi API_URL trống
+    // ──────────────────────────────────────────────────────────
+    const MOCK_DATA = [
+      {
+        RecipeID: "R01",
+        Name: "Trứng Đúc Thịt",
+        Ingredients: ["trứng", "thịt băm", "hành lá", "nước mắm", "tiêu"],
+        Instructions: [
+          "Trộn đều trứng với thịt băm, hành lá thái nhỏ, nước mắm và tiêu.",
+          "Đun chảo với một chút dầu ăn ở lửa vừa.",
+          "Đổ hỗn hợp vào chảo, đậy nắp và hấp khoảng 10 phút.",
+          "Khi mặt trên se lại và chín vàng, tắt bếp.",
+          "Dùng nóng với cơm trắng."
+        ],
+        ImageURL: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=600&q=80"
+      },
+      {
+        RecipeID: "R02",
+        Name: "Đậu Sốt Cà Chua",
+        Ingredients: ["đậu hũ", "cà chua", "hành tím", "tỏi", "nước mắm", "đường"],
+        Instructions: [
+          "Cắt đậu hũ thành miếng vừa ăn, chiên vàng hai mặt.",
+          "Phi thơm hành tím và tỏi băm.",
+          "Cho cà chua thái nhỏ vào xào mềm.",
+          "Thêm đậu hũ đã chiên vào, nêm nước mắm, đường.",
+          "Đảo đều, nấu thêm 3 phút cho ngấm gia vị. Rắc hành lá lên trên."
+        ],
+        ImageURL: "https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=600&q=80"
+      },
+      {
+        RecipeID: "R03",
+        Name: "Canh Cà Chua Trứng",
+        Ingredients: ["cà chua", "trứng", "hành lá", "nước mắm", "muối"],
+        Instructions: [
+          "Đun sôi khoảng 500ml nước.",
+          "Cho cà chua thái múi vào khi nước sôi.",
+          "Đánh tan trứng, đổ từ từ vào nồi canh đang sôi, khuấy nhẹ.",
+          "Nêm nước mắm, muối cho vừa ăn.",
+          "Tắt bếp, rắc hành lá thái nhỏ. Dùng nóng."
+        ],
+        ImageURL: "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80"
+      },
+      {
+        RecipeID: "R04",
+        Name: "Thịt Kho Tàu",
+        Ingredients: ["thịt ba chỉ", "trứng", "nước dừa", "nước mắm", "đường", "tỏi", "tiêu"],
+        Instructions: [
+          "Ướp thịt ba chỉ với nước mắm, đường, tỏi, tiêu khoảng 30 phút.",
+          "Thắng đường vàng cánh gián, cho thịt vào đảo đều.",
+          "Đổ nước dừa vừa ngập thịt, đun sôi rồi hạ lửa nhỏ.",
+          "Thêm trứng luộc bóc vỏ vào nồi.",
+          "Kho liu riu 45–60 phút đến khi nước cạn sền sệt và thịt mềm."
+        ],
+        ImageURL: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&q=80"
+      },
+      {
+        RecipeID: "R05",
+        Name: "Rau Muống Xào Tỏi",
+        Ingredients: ["rau muống", "tỏi", "dầu ăn", "nước mắm", "muối"],
+        Instructions: [
+          "Rau muống nhặt sạch, rửa và để ráo nước.",
+          "Đun chảo nóng với dầu ăn, phi thơm tỏi băm.",
+          "Cho rau muống vào xào lửa to, đảo liên tục.",
+          "Nêm nước mắm và muối cho vừa ăn.",
+          "Xào đến khi rau chín mềm nhưng vẫn giữ màu xanh. Dùng ngay."
+        ],
+        ImageURL: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&q=80"
+      }
+    ];
+
+    // ──────────────────────────────────────────────────────────
+    //  UTILITIES
+    // ──────────────────────────────────────────────────────────
+    function showStatus(icon, text, colorClass = "bg-blue-50 border-blue-200 text-blue-700") {
+      const bar = document.getElementById("status-bar");
+      bar.className = `mb-5 flex items-center gap-3 ${colorClass} rounded-xl px-4 py-3 text-sm font-medium`;
+      document.getElementById("status-icon").innerHTML = icon;
+      document.getElementById("status-text").textContent = text;
+      bar.classList.remove("hidden");
+    }
+    function hideStatus() {
+      document.getElementById("status-bar").classList.add("hidden");
+    }
+    function setButtons(disabled) {
+      document.getElementById("search-btn").disabled = disabled;
+      document.getElementById("random-btn").disabled = disabled;
+      if (disabled) {
+        document.getElementById("search-btn").classList.add("opacity-60", "cursor-not-allowed");
+        document.getElementById("random-btn").classList.add("opacity-60", "cursor-not-allowed");
+      } else {
+        document.getElementById("search-btn").classList.remove("opacity-60", "cursor-not-allowed");
+        document.getElementById("random-btn").classList.remove("opacity-60", "cursor-not-allowed");
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  RENDER RESULTS
+    // ──────────────────────────────────────────────────────────
+    function renderResults(recipes, isLive = false) {
+      const grid = document.getElementById("results-grid");
+      const header = document.getElementById("results-header");
+      const emptyState = document.getElementById("empty-state");
+
+      grid.innerHTML = "";
+      emptyState.classList.add("hidden");
+
+      if (!recipes || recipes.length === 0) {
+        header.classList.add("hidden");
+        emptyState.classList.remove("hidden");
+        return;
+      }
+
+      header.classList.remove("hidden");
+      document.getElementById("result-count").textContent = recipes.length;
+
+      const badge = document.getElementById("data-source-badge");
+      if (isLive) {
+        badge.textContent = "🟢 Dữ liệu từ AWS DynamoDB";
+        badge.className = "text-xs px-3 py-1 rounded-full font-semibold bg-green-100 text-green-700 border border-green-200";
+      } else {
+        badge.textContent = "🟡 Dữ liệu mẫu (Offline)";
+        badge.className = "text-xs px-3 py-1 rounded-full font-semibold bg-yellow-100 text-yellow-700 border border-yellow-200";
+      }
+
+      recipes.forEach((recipe, idx) => {
+        const card = document.createElement("div");
+        card.className = "recipe-card fade-in bg-white rounded-2xl overflow-hidden shadow border border-orange-50";
+        card.style.animationDelay = `${idx * 60}ms`;
+
+        const ingredients = Array.isArray(recipe.Ingredients)
+          ? recipe.Ingredients
+          : (recipe.Ingredients || "").split(",").map(s => s.trim());
+
+        const tagsHtml = ingredients
+          .map(ing => `<span class="ingredient-tag">${ing}</span>`)
+          .join("");
+
+        card.innerHTML = `
+          <div class="relative">
+            <img
+              src="${recipe.ImageURL || 'https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80'}"
+              alt="${recipe.Name}"
+              class="w-full h-44 object-cover bg-orange-50"
+              onerror="this.src='https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80'"
+            />
+            <span class="absolute top-2 left-2 bg-orange-500 text-white text-xs font-bold
+                         px-2 py-0.5 rounded-full shadow">#${recipe.RecipeID || idx+1}</span>
+          </div>
+          <div class="p-4">
+            <h3 class="font-extrabold text-gray-800 text-base mb-2">${recipe.Name}</h3>
+            <p class="text-xs text-gray-500 font-medium mb-1">Nguyên liệu:</p>
+            <div class="mb-3">${tagsHtml}</div>
+            <button
+              onclick='openPopup(${JSON.stringify(recipe).replace(/'/g, "\\'")})'
+              class="w-full mt-1 bg-orange-500 hover:bg-orange-600 active:scale-95
+                     text-white text-sm font-bold py-2 rounded-xl transition-all
+                     flex items-center justify-center gap-2"
+            >
+              📖 Xem cách làm
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  MOCK FILTER (offline)
+    // ──────────────────────────────────────────────────────────
+    function filterMockData(keywords) {
+      if (!keywords || keywords.length === 0) return MOCK_DATA;
+      return MOCK_DATA.filter(recipe =>
+        keywords.some(kw =>
+          recipe.Ingredients.some(ing =>
+            ing.toLowerCase().includes(kw.toLowerCase())
+          )
+        )
+      );
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  SEARCH (API or MOCK)
+    // ──────────────────────────────────────────────────────────
+    async function searchRecipes() {
+      const raw = document.getElementById("ingredient-input").value.trim();
+      if (!raw) {
+        showStatus("⚠️", "Vui lòng nhập ít nhất một nguyên liệu!",
+          "bg-yellow-50 border-yellow-200 text-yellow-700");
+        return;
+      }
+      if (raw.length > 200) {
+        showStatus("⛔", "Nguyên liệu nhập quá dài (tối đa 200 ký tự).",
+          "bg-red-50 border-red-200 text-red-700");
+        return;
+      }
+
+      const keywords = raw.split(",").map(s => s.trim()).filter(Boolean);
+
+      setButtons(true);
+
+      if (!API_URL) {
+        // ── OFFLINE MODE ──
+        showStatus('<span class="spinner"></span>',
+          `Đang lọc "${keywords.join(", ")}" từ dữ liệu mẫu...`);
+        await new Promise(r => setTimeout(r, 500)); // simulate delay
+
+        const results = filterMockData(keywords);
+        renderResults(results, false);
+
+        if (results.length > 0) {
+          showStatus("✅", `Tìm thấy ${results.length} món phù hợp (offline mock).`,
+            "bg-green-50 border-green-200 text-green-700");
+        } else {
+          hideStatus();
+        }
+      } else {
+        // ── LIVE API MODE ──
+        showStatus('<span class="spinner"></span>',
+          `Đang truy vấn AWS Lambda... (${keywords.join(", ")})`);
+        try {
+          const res = await fetch(`${API_URL}?ingredients=${encodeURIComponent(raw)}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const recipes = data.recipes || data.items || data || [];
+          renderResults(recipes, true);
+          showStatus("✅", `Tìm thấy ${recipes.length} món ăn từ DynamoDB.`,
+            "bg-green-50 border-green-200 text-green-700");
+        } catch (err) {
+          showStatus("❌", `Lỗi kết nối API: ${err.message}. Hiển thị dữ liệu mẫu.`,
+            "bg-red-50 border-red-200 text-red-700");
+          renderResults(filterMockData(keywords), false);
+        }
+      }
+
+      setButtons(false);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  RANDOM
+    // ──────────────────────────────────────────────────────────
+    async function randomRecipes() {
+      document.getElementById("ingredient-input").value = "";
+      setButtons(true);
+
+      if (!API_URL) {
+        showStatus('<span class="spinner"></span>', "Đang chọn món ngẫu nhiên...");
+        await new Promise(r => setTimeout(r, 400));
+        // Shuffle and pick 3
+        const shuffled = [...MOCK_DATA].sort(() => Math.random() - 0.5).slice(0, 3);
+        renderResults(shuffled, false);
+        showStatus("🎲", `Đã chọn ngẫu nhiên ${shuffled.length} món ăn!`,
+          "bg-purple-50 border-purple-200 text-purple-700");
+      } else {
+        showStatus('<span class="spinner"></span>', "Đang lấy món ngẫu nhiên từ AWS...");
+        try {
+          const res = await fetch(`${API_URL}?random=true`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const recipes = data.recipes || data.items || data || [];
+          renderResults(recipes, true);
+          showStatus("🎲", `Đã lấy ${recipes.length} món ngẫu nhiên từ DynamoDB!`,
+            "bg-purple-50 border-purple-200 text-purple-700");
+        } catch (err) {
+          showStatus("❌", `Lỗi API: ${err.message}. Dùng dữ liệu mẫu.`,
+            "bg-red-50 border-red-200 text-red-700");
+          const shuffled = [...MOCK_DATA].sort(() => Math.random() - 0.5).slice(0, 3);
+          renderResults(shuffled, false);
+        }
+      }
+
+      setButtons(false);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    //  POPUP
+    // ──────────────────────────────────────────────────────────
+    function openPopup(recipe) {
+      document.getElementById("popup-img").src =
+        recipe.ImageURL || "https://images.unsplash.com/photo-1547592180-85f173990554?w=600&q=80";
+      document.getElementById("popup-img").alt = recipe.Name;
+      document.getElementById("popup-name").textContent = recipe.Name;
+
+      const ingredients = Array.isArray(recipe.Ingredients)
+        ? recipe.Ingredients
+        : (recipe.Ingredients || "").split(",").map(s => s.trim());
+      document.getElementById("popup-ingredients").innerHTML =
+        `<p class="text-xs text-gray-500 font-semibold mb-1">🧅 Nguyên liệu:</p>`
+        + ingredients.map(i => `<span class="ingredient-tag">${i}</span>`).join("");
+
+      const steps = Array.isArray(recipe.Instructions)
+        ? recipe.Instructions
+        : [recipe.Instructions || "Chưa có hướng dẫn."];
+      document.getElementById("popup-instructions").innerHTML =
+        steps.map(step => `<li class="leading-relaxed">${step}</li>`).join("");
+
+      document.getElementById("popup-overlay").classList.add("active");
+      document.body.style.overflow = "hidden";
+    }
+    function closePopup(e) {
+      if (e.target === document.getElementById("popup-overlay")) closePopupDirect();
+    }
+    function closePopupDirect() {
+      document.getElementById("popup-overlay").classList.remove("active");
+      document.body.style.overflow = "";
+    }
+
+    // Enter key support
+    document.getElementById("ingredient-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") searchRecipes();
+    });
+
+    // Escape key closes popup
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") closePopupDirect();
+    });
+  </script>
+</body>
+</html>
