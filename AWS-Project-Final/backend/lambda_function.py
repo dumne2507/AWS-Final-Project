@@ -24,7 +24,7 @@ logger.setLevel(logging.INFO)
 # ─────────────────────────────────────────────
 AWS_REGION        = os.environ.get("AWS_REGION", "ap-southeast-1")
 TABLE_NAME        = os.environ.get("DYNAMODB_TABLE", "RecipesTable")
-MODEL_ID          = os.environ.get("BEDROCK_MODEL_ID", "apac.anthropic.claude-3-haiku-20240307-v1:0")
+MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "apac.anthropic.claude-haiku-4-5-20251001-v1:0")
 MAX_INPUT_LENGTH  = 200     # Giới hạn độ dài input chống spam
 MAX_KEYWORDS      = 10      # Tối đa 10 nguyên liệu mỗi lần tìm
 
