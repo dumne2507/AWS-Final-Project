@@ -25,7 +25,7 @@ jobs:
 
       - name: Sync frontend to S3
         run: |
-          aws s3 sync frontend/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+          aws s3 sync AWS-Project-Final/frontend/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
 
       - name: Invalidate CloudFront cache
         env:
@@ -53,8 +53,8 @@ jobs:
 
       - name: Package Lambda function
         run: |
-          cd backend
-          zip -r ../function.zip .
+          cd AWS-Project-Final/backend
+          zip -r ../../function.zip .
 
       - name: Update Lambda function code
         run: |
